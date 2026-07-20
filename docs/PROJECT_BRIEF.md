@@ -13,7 +13,7 @@ An open-source, privacy-respecting alternative to AllTrails: a native mobile app
 - **Fully open source.**
 
 ## Author Background
-Building this as a first-ever coding project. Comfortable with bash/terminal and command-line workflows, but no prior experience with JavaScript, React, or app development. Expect to learn concepts as they come up — prefer explanations alongside code rather than being handed unexplained code.
+A systems administrator with years of experience maintaining high-stakes production environments in the semiconductor industry — real technical depth in infrastructure, security, and production operations. This is a first-ever *app-building* project specifically: no prior hands-on experience with JavaScript, React, or mobile app development before this. Comfortable with bash/terminal and command-line workflows going in. Expect to learn app-development-specific concepts as they come up — prefer explanations alongside code rather than being handed unexplained code — but bring real judgment to architecture, security, and production-reliability calls from day one, not just to app-specific syntax.
 
 ## Tech Stack
 - **Framework:** React Native + Expo (chosen for beginner-friendly tooling, large ecosystem, cross-platform from one codebase)
