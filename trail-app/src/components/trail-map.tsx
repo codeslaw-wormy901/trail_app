@@ -6,6 +6,7 @@ import { ParkInfoPanel } from '@/components/park-info-panel';
 import { ThemedView } from '@/components/themed-view';
 import { TrailDetailSheet } from '@/components/trail-detail-sheet';
 import { TrailTypeFilter } from '@/components/trail-type-filter';
+import { useContours } from '@/hooks/use-contours';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useOfflineBasemapStyle } from '@/hooks/use-offline-basemap-style';
 import { useParkBoundary } from '@/hooks/use-park-boundary';
@@ -19,6 +20,7 @@ export function TrailMap() {
   const mapStyle = useOfflineBasemapStyle(region.slug);
   const { boundary } = useParkBoundary(region.slug);
   const { geojson } = useTrailData(region.slug);
+  const contours = useContours(region.slug);
   const [visibleTypes, setVisibleTypes] = useState<string[]>(ALL_TRAIL_TYPES);
   const [selectedTrail, setSelectedTrail] = useState<GeoJSON.Feature | null>(null);
   const [parkSelected, setParkSelected] = useState(false);
@@ -60,6 +62,16 @@ export function TrailMap() {
             paint={{ 'line-color': '#16a34a', 'line-width': 1.5 }}
           />
         </GeoJSONSource>
+
+        {contours && (
+          <GeoJSONSource id="contours" data={contours}>
+            <Layer
+              id="contours-line"
+              type="line"
+              paint={{ 'line-color': '#8b7355', 'line-width': 1, 'line-opacity': 0.5 }}
+            />
+          </GeoJSONSource>
+        )}
 
         <GeoJSONSource
           id="trails"
