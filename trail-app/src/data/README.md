@@ -10,6 +10,7 @@ Each folder under `regions/<slug>/` (`trails.json`, `boundary.json`, `basemap.pm
 
 - **`build_catalog.py`** — takes an osmium GeoJSON export of every `boundary=protected_area`/`boundary=national_park` feature in a state extract, and produces a curated catalog: filters to recognized hiking-relevant designations (National Park, National Forest, State Park, Wilderness Area, etc. — inclusion-based, not a blocklist, since OSM tags plenty of things "protected" that aren't real hiking destinations, like historic missions or urban parks), merges disjoint same-named parcels into one `MultiPolygon` (common for wildlife refuges split across several parcels), and computes each entry's bounding box.
 - **`transform_region.py`** — takes one region's raw osmium trail export plus a catalog entry, and produces the app-shaped `trails.json` (highway type labeled, `sac_scale` mapped to a plain difficulty label, distance computed from geometry) and `boundary.json` (the single named boundary feature pulled out of the catalog).
+- **`add_elevation_gain.py`** — adds an `elevationGainFeet` property to each trail feature by sampling that region's own bundled `terrain.pmtiles` (same Mapterhorn DEM data as hillshade, no separate elevation source). Resamples each trail's line at a fixed ~30m step (matching the DEM's native resolution) before summing positive elevation deltas — sampling every raw OSM vertex instead would mostly just re-measure DEM pixel noise, not real elevation change. A small number of trails whose path extends past the extracted terrain bbox get `null` (shown as "not available" in the UI) rather than a wrong number.
 - **`texas-catalog.json`** — the full 50-entry Texas catalog produced by `build_catalog.py` from a full-state extract. Only 3 of these 50 are currently wired into `catalog.json`/`regions.ts` — the rest are here for reference and as the starting point whenever more Texas regions get added. Known data-quality issue to fix before trusting this further: at least one duplicate entry from inconsistent OSM naming ("Caprock Canyons State Park" vs "...and Trailway").
 
 ## How a region gets added (reproduce for a new region, or when OSM data goes stale)
@@ -51,6 +52,11 @@ pmtiles extract https://build.protomaps.com/$(date +%Y%m%d).pmtiles regions/<slu
 #    visible shading improvement once already this close.
 pmtiles extract https://download.mapterhorn.com/planet.pmtiles regions/<slug>/terrain.pmtiles \
   --bbox=<west,south,east,north> --minzoom=9 --maxzoom=11
+
+# 8. Add elevation gain per trail, sampled from the terrain slice just extracted
+#    (requires Pillow: pip3 install Pillow)
+python3 scripts/add_elevation_gain.py regions/<slug>/trails.json regions/<slug>/terrain.pmtiles \
+  regions/<slug>/trails.json
 ```
 
 Then, by hand:

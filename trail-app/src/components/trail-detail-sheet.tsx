@@ -10,11 +10,15 @@ type TrailProperties = {
   surface?: string | null;
   difficulty?: string | null;
   distanceMiles?: number;
+  elevationGainFeet?: number | null;
 };
 
-// Everything here comes straight from OSM tags (see toGeoJSON in
-// use-trail-data.ts) — difficulty and elevation gain are shown honestly as
-// "not available" when OSM doesn't have them, rather than guessed.
+// Trail tags (name, distance, difficulty, surface) come straight from OSM —
+// shown honestly as "not available" when OSM doesn't have them, rather than
+// guessed. Elevation gain is sampled separately, from each region's bundled
+// terrain data (see src/data/scripts/add_elevation_gain.py) — also shown as
+// "not available" for the small number of trails whose path extends just
+// past the extracted terrain bounding box.
 export function TrailDetailSheet({
   feature,
   onClose,
@@ -52,8 +56,10 @@ export function TrailDetailSheet({
         </ThemedText>
       )}
       <ThemedText type="small" themeColor="textSecondary">
-        Elevation gain: not available yet — needs a terrain data source, planned for a
-        later phase.
+        Elevation gain:{' '}
+        {typeof props.elevationGainFeet === 'number'
+          ? `~${props.elevationGainFeet.toLocaleString()} ft`
+          : 'not available for this trail'}
       </ThemedText>
 
       <Pressable onPress={onToggleFavorite} hitSlop={8} style={styles.favoriteRow}>
