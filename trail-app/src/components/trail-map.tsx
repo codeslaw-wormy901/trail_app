@@ -7,10 +7,10 @@ import { ThemedView } from '@/components/themed-view';
 import { TrailDetailSheet } from '@/components/trail-detail-sheet';
 import { TrailTypeFilter } from '@/components/trail-type-filter';
 import { useFavorites } from '@/hooks/use-favorites';
+import { useOfflineBasemapStyle } from '@/hooks/use-offline-basemap-style';
 import { useParkBoundary } from '@/hooks/use-park-boundary';
 import { useTrailData } from '@/hooks/use-trail-data';
 
-const MAPTILER_KEY = process.env.EXPO_PUBLIC_MAPTILER_KEY;
 const PARK_NAME = 'Guadalupe Mountains National Park';
 
 const INITIAL_CENTER: [number, number] = [-104.8608, 31.8956];
@@ -18,14 +18,8 @@ const INITIAL_ZOOM = 10;
 
 const ALL_TRAIL_TYPES = ['path', 'footway', 'track'];
 
-// Falls back to MapLibre's public demo style (no key needed) so the map still
-// renders before a MapTiler key is configured in .env — see docs/DATA_ARCHITECTURE.md
-// for why MapTiler was chosen as the Phase 1 tile host.
-const STYLE_URL = MAPTILER_KEY
-  ? `https://api.maptiler.com/maps/outdoor-v2/style.json?key=${MAPTILER_KEY}`
-  : 'https://demotiles.maplibre.org/style.json';
-
 export function TrailMap() {
+  const mapStyle = useOfflineBasemapStyle();
   const { boundary } = useParkBoundary();
   const { geojson } = useTrailData();
   const [visibleTypes, setVisibleTypes] = useState<string[]>(ALL_TRAIL_TYPES);
@@ -39,9 +33,13 @@ export function TrailMap() {
     );
   }
 
+  if (!mapStyle) {
+    return <ThemedView style={styles.container} />;
+  }
+
   return (
     <ThemedView style={styles.container}>
-      <Map style={styles.map} mapStyle={STYLE_URL}>
+      <Map style={styles.map} mapStyle={mapStyle}>
         <Camera initialViewState={{ center: INITIAL_CENTER, zoom: INITIAL_ZOOM }} />
 
         <GeoJSONSource

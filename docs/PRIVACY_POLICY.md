@@ -10,7 +10,7 @@ This app is open source. You don't have to take this document's word for anythin
 - Your favorites and downloaded maps live only on your device. We never see them.
 - We don't run analytics, ad tracking, or crash-reporting SDKs. There is nothing collecting usage data about you.
 - We don't sell data, because we don't collect data to sell.
-- Rendering a map requires talking to a map tile server — that's the one place your device necessarily contacts a third party, explained honestly below rather than hidden.
+- For the one area this app currently supports, the map and its trails are bundled with the app — rendering them makes zero network requests. Areas added later may need to talk to a live map/trail server instead; that tradeoff is explained honestly below rather than hidden.
 - Accounts and community features (reviews, etc.) are opt-in, off by default, and don't require your real name.
 
 ## What the app does not do
@@ -21,21 +21,18 @@ This app is open source. You don't have to take this document's word for anythin
 - No background location tracking, ever.
 - No selling, renting, or sharing of your data with advertisers or data brokers — there's nothing to share.
 
-## What actually leaves your device, and why `[Live]`
+## What actually leaves your device — currently, nothing, for the one area this app supports `[Live]`
 
-Two kinds of network requests happen even though there's no account and no analytics:
+For Guadalupe Mountains National Park — the only area this app currently supports — **the app makes no network requests at all** to show you the map or its trails. Both the map imagery and the trail/boundary data are bundled with the app itself, extracted once from OpenStreetMap ahead of time rather than fetched live. It works fully with no signal, and there's nothing to reveal to anyone because there's no request being made in the first place.
 
-**Map tiles.** To draw the map on screen, your device requests map imagery for the area you're viewing from MapTiler, our tile hosting provider. That request includes your IP address and which map area you're looking at — this is true of any map app and isn't something an app can avoid while still showing you a map. What we do to limit it:
+This wasn't the original plan for either piece — both started as live fetches (map tiles from MapTiler, trail data from OpenStreetMap's Overpass API), described below for transparency and because **this is exactly what will apply again the moment this app supports an area that isn't worth bundling this way**:
 
-- No account, login, or persistent device ID is attached to these requests — a tile host can't link today's request to yesterday's.
-- Tiles are cached on your device once fetched, so viewing the same area again doesn't generate a new request.
-- Downloading an area for offline use (see below) means you can hike it later with zero network requests at all.
-- We chose MapTiler partly because they publish a specific commitment for tile requests themselves: served through Cloudflare, with IP addresses held in memory a maximum of 20 minutes before being destroyed, and MapTiler stating they don't handle visitor IPs directly for map tile serving.
-- We expect to eventually self-host tile generation (using OpenStreetMap-derived open data) to remove this third party entirely — planned for the phase where offline region downloads are built, not yet.
+- **Map tiles**, when fetched live, mean your device requests map imagery for the area you're viewing from a tile host (MapTiler, evaluated specifically for this). That request includes your IP address and which map area you're looking at — true of any map app, unavoidable while showing a live map from a server. What we'd do to limit it: no account, login, or persistent device ID attached to the request, so a tile host can't link today's request to yesterday's; caching so the same area isn't re-requested; and MapTiler was chosen partly because they publish a specific commitment for tile requests — served through Cloudflare, IP addresses held in memory a maximum of 20 minutes before being destroyed, MapTiler stating they don't handle visitor IPs directly for map tile serving.
+- **Trail data**, when fetched live, comes from OpenStreetMap's public Overpass API, with the same no-account, no-persistent-identifier approach.
 
-**Trail data.** For the one area this app currently supports (Guadalupe Mountains National Park), trail names, distances, tags, and the park boundary are bundled with the app itself — extracted from OpenStreetMap once ahead of time, not fetched live. That means **no network request happens at all** for this data; it works with no signal and reveals nothing to anyone, since there's no request to reveal it in. This wasn't the original plan — it started as a live Overpass API fetch, but the public Overpass service turned out to be unreliable enough during development that bundling this single region became the better answer, not just a workaround. When more areas are added, each will either get the same bundled treatment or, for areas not worth bundling, fall back to a live fetch — if that happens, it'll get the same no-account treatment described for map tiles above, and this section will be updated to say which applies where. Once Phase 4 ships, U.S. government trail sources (USGS, National Park Service, U.S. Forest Service) are folded in the same way — public data, extracted ahead of time where practical.
+When a new area is added, each will either get the same bundled, zero-request treatment as Guadalupe Mountains, or — for an area not worth bundling that way — fall back to the live approach above, and this section will be updated to say plainly which applies where. Once Phase 4 ships, U.S. government trail sources (USGS, National Park Service, U.S. Forest Service) are folded in the same way — public data, bundled ahead of time where practical.
 
-Map tile requests (above) still happen live, since rendering an interactive map that isn't just the one bundled area requires it. Neither map tile nor any future live trail-data request carries anything about you beyond what any web request inherently carries (your IP address, sent to the server you're asking for data from).
+Whenever either does happen live, in the future, for an unbundled area: neither carries anything about you beyond what any web request inherently carries (your IP address, sent to the server you're asking for data from).
 
 ## What stays on your device `[Live once Phase 3 ships]`
 
