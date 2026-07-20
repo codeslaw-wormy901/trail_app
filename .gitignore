@@ -1,5 +1,6 @@
 # macOS
 .DS_Store
 
-# Claude Code local-only settings (not shared with collaborators)
+# Claude Code local-only settings and session state (not shared with collaborators)
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
