@@ -25,6 +25,19 @@ const GLYPHS_URL = 'asset://fonts/{fontstack}/{range}.pbf';
  * Overrides the theme's default label placement (name to the *side* of the
  * icon) with a centered label *below* the icon — the familiar Apple/Google
  * Maps look (pin or icon on top, name stacked underneath).
+ *
+ * Also drops the theme's `zoom >= min_zoom` filter condition. That's a
+ * general-purpose-basemap recommendation for avoiding label clutter across
+ * every possible zoom level and region size — checked the raw tile data
+ * directly (not just our own filter) and confirmed peaks are only *present*
+ * in tiles from zoom 11 up regardless of what we do in our style, but our
+ * filter was adding an extra gate on top of that (requiring the feature's
+ * own suggested min_zoom, 12-14 for named peaks), pushing visibility later
+ * than the data actually requires. For a small, hiking-specific POI set
+ * (a handful of peaks/water sources per region, not hundreds), showing
+ * whatever the current tile already contains is the right call — dropping
+ * this still doesn't show anything below zoom 11, since that's a real
+ * tile-generation cutoff we don't control, not a style choice.
  */
 function buildPoiLayer(): LayerSpecification | null {
   const theme = namedTheme('light');
@@ -35,8 +48,12 @@ function buildPoiLayer(): LayerSpecification | null {
   if (!poiLayer) return null;
 
   const { 'text-variable-anchor': _variableAnchor, ...layout } = poiLayer.layout ?? {};
+  const kindFilter = (
+    Array.isArray(poiLayer.filter) ? poiLayer.filter[1] : poiLayer.filter
+  ) as typeof poiLayer.filter;
   return {
     ...poiLayer,
+    filter: kindFilter,
     layout: {
       ...layout,
       'text-justify': 'center',
