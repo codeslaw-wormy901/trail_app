@@ -1,8 +1,4 @@
-import type {
-  LayerSpecification,
-  StyleSpecification,
-  SymbolLayerSpecification,
-} from '@maplibre/maplibre-react-native';
+import type { LayerSpecification, StyleSpecification, SymbolLayerSpecification } from '@maplibre/maplibre-react-native';
 import { Asset } from 'expo-asset';
 import { namedTheme, noLabels, layers as themeLayers } from 'protomaps-themes-base';
 import { useEffect, useState } from 'react';
@@ -12,27 +8,28 @@ import { usePoiSpriteUrl } from '@/hooks/use-poi-sprite';
 
 const SOURCE_ID = 'bundled-basemap';
 const TERRAIN_SOURCE_ID = 'bundled-terrain';
+// Bundled by plugins/with-font-glyphs.js at prebuild time (Noto Sans
+// Regular, SIL OFL licensed, from Protomaps' open basemaps-assets repo) —
+// see that plugin for why this needs a native config plugin rather than
+// the expo-asset/require() trick used for pmtiles and the sprite. Only
+// "Regular" is bundled: the "pois" layer below is the only labelled layer
+// this style uses, and it only ever references Noto Sans Regular, not the
+// Italic/Medium variants city/road labels would need.
+const GLYPHS_URL = 'asset://fonts/{fontstack}/{range}.pbf';
 
 /**
- * Builds the icon-only "pois" symbol layer: takes the full themed layer set
- * (which needs a `lang` even though we discard every text-field from it) and
- * strips everything down to just `icon-image`. Full POI labels need bundled
- * font glyphs too — real extra scope, deliberately deferred — so this
- * renders icons (peaks, water, restrooms, etc.) with no name text under them.
+ * Pulls the "pois" symbol layer (icon + name label) out of the full themed
+ * layer set — the rest of that set (place/road/city labels) stays unused,
+ * since only POI names are in scope here, not general map text.
  */
-function buildPoiIconLayer(): LayerSpecification | null {
+function buildPoiLayer(): LayerSpecification | null {
   const theme = namedTheme('light');
   const allLayers = themeLayers(SOURCE_ID, theme, { lang: 'en' });
-  const poiLayer = allLayers.find(
-    (l): l is SymbolLayerSpecification => l.id === 'pois' && l.type === 'symbol',
+  return (
+    allLayers.find(
+      (l): l is SymbolLayerSpecification => l.id === 'pois' && l.type === 'symbol',
+    ) ?? null
   );
-  if (!poiLayer) return null;
-
-  const { paint: _paint, layout, ...rest } = poiLayer;
-  return {
-    ...rest,
-    layout: { 'icon-image': layout?.['icon-image'] },
-  };
 }
 
 /**
@@ -43,11 +40,10 @@ function buildPoiIconLayer(): LayerSpecification | null {
  * (Android SDK 13.2.0 / iOS SDK 6.26.0, both well past the versions that
  * added it).
  *
- * Uses `noLabels` plus one icon-only POI layer, rather than the full
- * Protomaps theme: full text labels (POI names, place names, road names)
- * need a bundled font-glyph server too, which is real extra scope,
- * deliberately deferred. This still renders roads, water, landuse, POI
- * icons, and hillshade relief — just without any text.
+ * Uses `noLabels` plus one POI layer (icon + name), rather than the full
+ * Protomaps theme: general map text (place names, road names) still needs
+ * more bundled font-glyph variants than just POI names do, and is
+ * deliberately out of scope here — see plugins/with-font-glyphs.js.
  *
  * Hillshade source: a per-region terrain.pmtiles slice extracted from
  * Mapterhorn's public, webp-encoded "terrarium" planet archive (same
@@ -80,7 +76,7 @@ export function useOfflineBasemapStyle(regionSlug: string) {
         terrainLocalUri = terrainAsset.localUri ?? null;
       }
 
-      const poiLayer = buildPoiIconLayer();
+      const poiLayer = buildPoiLayer();
       const baseLayers = poiLayer ? [...noLabels(SOURCE_ID, 'light'), poiLayer] : noLabels(SOURCE_ID, 'light');
 
       // Hillshade has to go last: the theme's "earth" background layer is an
@@ -102,6 +98,7 @@ export function useOfflineBasemapStyle(regionSlug: string) {
       setStyle({
         version: 8,
         sprite: spriteUrl!,
+        glyphs: GLYPHS_URL,
         sources: {
           [SOURCE_ID]: {
             type: 'vector',

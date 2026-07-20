@@ -37,7 +37,8 @@
       ],
       "@maplibre/maplibre-react-native",
       "expo-sqlite",
-      "expo-asset"
+      "expo-asset",
+      "./plugins/with-font-glyphs.js"
     ],
     "experiments": {
       "typedRoutes": true,
