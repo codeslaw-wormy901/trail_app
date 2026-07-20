@@ -21,15 +21,29 @@ const GLYPHS_URL = 'asset://fonts/{fontstack}/{range}.pbf';
  * Pulls the "pois" symbol layer (icon + name label) out of the full themed
  * layer set — the rest of that set (place/road/city labels) stays unused,
  * since only POI names are in scope here, not general map text.
+ *
+ * Overrides the theme's default label placement (name to the *side* of the
+ * icon) with a centered label *below* the icon — the familiar Apple/Google
+ * Maps look (pin or icon on top, name stacked underneath).
  */
 function buildPoiLayer(): LayerSpecification | null {
   const theme = namedTheme('light');
   const allLayers = themeLayers(SOURCE_ID, theme, { lang: 'en' });
-  return (
-    allLayers.find(
-      (l): l is SymbolLayerSpecification => l.id === 'pois' && l.type === 'symbol',
-    ) ?? null
+  const poiLayer = allLayers.find(
+    (l): l is SymbolLayerSpecification => l.id === 'pois' && l.type === 'symbol',
   );
+  if (!poiLayer) return null;
+
+  const { 'text-variable-anchor': _variableAnchor, ...layout } = poiLayer.layout ?? {};
+  return {
+    ...poiLayer,
+    layout: {
+      ...layout,
+      'text-justify': 'center',
+      'text-anchor': 'top',
+      'text-offset': [0, 0.6],
+    },
+  };
 }
 
 /**
