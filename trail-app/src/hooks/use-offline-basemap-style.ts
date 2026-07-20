@@ -11,6 +11,7 @@ import { REGION_ASSETS } from '@/data/regions';
 import { usePoiSpriteUrl } from '@/hooks/use-poi-sprite';
 
 const SOURCE_ID = 'bundled-basemap';
+const TERRAIN_SOURCE_ID = 'bundled-terrain';
 
 /**
  * Builds the icon-only "pois" symbol layer: takes the full themed layer set
@@ -45,8 +46,15 @@ function buildPoiIconLayer(): LayerSpecification | null {
  * Uses `noLabels` plus one icon-only POI layer, rather than the full
  * Protomaps theme: full text labels (POI names, place names, road names)
  * need a bundled font-glyph server too, which is real extra scope,
- * deliberately deferred. This still renders terrain, roads, water, landuse,
- * and POI icons — just without any text.
+ * deliberately deferred. This still renders roads, water, landuse, POI
+ * icons, and hillshade relief — just without any text.
+ *
+ * Hillshade source: a per-region terrain.pmtiles slice extracted from
+ * Mapterhorn's public, webp-encoded "terrarium" planet archive (same
+ * `pmtiles extract --bbox=...` pattern as the vector basemap, no live
+ * server dependency). Confirmed webp raster-dem tiles decode correctly on
+ * both platforms despite some outstanding upstream MapLibre Native issues
+ * around webp support — tested directly rather than assumed from docs.
  */
 export function useOfflineBasemapStyle(regionSlug: string) {
   const [style, setStyle] = useState<StyleSpecification | null>(null);
@@ -59,12 +67,37 @@ export function useOfflineBasemapStyle(regionSlug: string) {
     if (!spriteUrl) return;
 
     async function load() {
-      const asset = Asset.fromModule(REGION_ASSETS[regionSlug].basemap);
+      const regionAssets = REGION_ASSETS[regionSlug];
+      const asset = Asset.fromModule(regionAssets.basemap);
       await asset.downloadAsync();
       if (cancelled || !asset.localUri) return;
 
+      let terrainLocalUri: string | null = null;
+      if (regionAssets.terrain) {
+        const terrainAsset = Asset.fromModule(regionAssets.terrain);
+        await terrainAsset.downloadAsync();
+        if (cancelled) return;
+        terrainLocalUri = terrainAsset.localUri ?? null;
+      }
+
       const poiLayer = buildPoiIconLayer();
-      const layers = poiLayer ? [...noLabels(SOURCE_ID, 'light'), poiLayer] : noLabels(SOURCE_ID, 'light');
+      const baseLayers = poiLayer ? [...noLabels(SOURCE_ID, 'light'), poiLayer] : noLabels(SOURCE_ID, 'light');
+
+      // Hillshade has to go last: the theme's "earth" background layer is an
+      // opaque fill, so hillshade needs to draw after it (on top) to be
+      // visible at all — putting it first just gets fully painted over.
+      // Roads/water/trails still read clearly on top since MapLibre's
+      // hillshade paint blends with what's below rather than replacing it.
+      const hillshadeLayer: LayerSpecification[] = terrainLocalUri
+        ? [
+            {
+              id: 'hillshade',
+              type: 'hillshade',
+              source: TERRAIN_SOURCE_ID,
+              paint: { 'hillshade-shadow-color': '#5b4636', 'hillshade-exaggeration': 0.6 },
+            },
+          ]
+        : [];
 
       setStyle({
         version: 8,
@@ -81,8 +114,19 @@ export function useOfflineBasemapStyle(regionSlug: string) {
             attribution:
               '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://protomaps.com">Protomaps</a>',
           },
+          ...(terrainLocalUri
+            ? {
+                [TERRAIN_SOURCE_ID]: {
+                  type: 'raster-dem' as const,
+                  url: `pmtiles://${terrainLocalUri}`,
+                  encoding: 'terrarium' as const,
+                  tileSize: 256,
+                  attribution: '© <a href="https://mapterhorn.com/attribution">Mapterhorn</a>',
+                },
+              }
+            : {}),
         },
-        layers,
+        layers: [...baseLayers, ...hillshadeLayer],
       });
     }
 

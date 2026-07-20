@@ -1,6 +1,6 @@
 # Bundled region data
 
-Each folder under `regions/<slug>/` (`trails.json`, `boundary.json`, `basemap.pmtiles`) is a one-time extraction from OpenStreetMap + Protomaps, bundled with the app so that region works with **zero live network calls** — see `docs/DATA_ARCHITECTURE.md` for why (Overpass and MapTiler, the public APIs this data would otherwise come from live, turned out to be unreliable enough during development that bundling became the right call, not just a workaround).
+Each folder under `regions/<slug>/` (`trails.json`, `boundary.json`, `basemap.pmtiles`, `terrain.pmtiles`) is a one-time extraction from OpenStreetMap + Protomaps + Mapterhorn, bundled with the app so that region works with **zero live network calls** — see `docs/DATA_ARCHITECTURE.md` for why (Overpass and MapTiler, the public APIs this data would otherwise come from live, turned out to be unreliable enough during development that bundling became the right call, not just a workaround).
 
 `catalog.json` is the index of bundled regions (name, category, bounding box, map center/zoom) that drives the Regions picker screen (`src/app/regions.tsx`). `regions.ts` maps each catalog entry's slug to its `require()`'d asset files — Metro needs static, literal `require()` paths, so **`REGION_ASSETS` in `regions.ts` must be manually extended by hand any time a new region folder is added**; there's no dynamic loading yet.
 
@@ -42,12 +42,21 @@ python3 scripts/transform_region.py <slug>-trails-raw.geojson scripts/texas-cata
 #    (HTTP range requests — no full planet-file download needed)
 pmtiles extract https://build.protomaps.com/$(date +%Y%m%d).pmtiles regions/<slug>/basemap.pmtiles \
   --bbox=<west,south,east,north> --minzoom=0 --maxzoom=14
+
+# 7. Extract a matching terrain (hillshade) slice from Mapterhorn's public
+#    planet archive — same HTTP-range-request pattern, webp-encoded
+#    "terrarium" raster-dem tiles. Capped at z11 (source goes to z12): the
+#    vector basemap's extra zoom levels are worth the detail for roads/trails,
+#    but terrain-tile size roughly quadruples per zoom level for not much
+#    visible shading improvement once already this close.
+pmtiles extract https://download.mapterhorn.com/planet.pmtiles regions/<slug>/terrain.pmtiles \
+  --bbox=<west,south,east,north> --minzoom=9 --maxzoom=11
 ```
 
 Then, by hand:
 
 1. Add an entry to `catalog.json` (slug, name, category, bounds, center, zoom).
-2. Add a matching entry to `REGION_ASSETS` in `regions.ts` with static `require()`s for the three new files.
+2. Add a matching entry to `REGION_ASSETS` in `regions.ts` with static `require()`s for the four new files.
 
 ## When this needs to change
 

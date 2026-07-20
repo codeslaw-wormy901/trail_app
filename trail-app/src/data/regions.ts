@@ -21,21 +21,29 @@ export const REGION_CATALOG = catalogData as RegionCatalogEntry[];
  */
 export const REGION_ASSETS: Record<
   string,
-  { trails: GeoJSON.FeatureCollection; boundary: GeoJSON.Feature; basemap: number }
+  {
+    trails: GeoJSON.FeatureCollection;
+    boundary: GeoJSON.Feature;
+    basemap: number;
+    terrain?: number;
+  }
 > = {
   'big-bend': {
     trails: require('@/data/regions/big-bend/trails.json'),
     boundary: require('@/data/regions/big-bend/boundary.json'),
     basemap: require('@/data/regions/big-bend/basemap.pmtiles'),
+    terrain: require('@/data/regions/big-bend/terrain.pmtiles'),
   },
   'guadalupe-mountains': {
     trails: require('@/data/regions/guadalupe-mountains/trails.json'),
     boundary: require('@/data/regions/guadalupe-mountains/boundary.json'),
     basemap: require('@/data/regions/guadalupe-mountains/basemap.pmtiles'),
+    terrain: require('@/data/regions/guadalupe-mountains/terrain.pmtiles'),
   },
   'sam-houston-nf': {
     trails: require('@/data/regions/sam-houston-nf/trails.json'),
     boundary: require('@/data/regions/sam-houston-nf/boundary.json'),
     basemap: require('@/data/regions/sam-houston-nf/basemap.pmtiles'),
+    terrain: require('@/data/regions/sam-houston-nf/terrain.pmtiles'),
   },
 };
