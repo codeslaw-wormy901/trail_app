@@ -1,14 +1,11 @@
-import boundaryData from '@/data/guadalupe-boundary.json';
+import { REGION_ASSETS } from '@/data/regions';
 
 /**
- * Guadalupe Mountains National Park's real boundary polygon, bundled with
- * the app from a one-time OpenStreetMap extraction — see src/data/README.md.
- *
- * Note for whenever multi-location support or live fetching is reintroduced:
- * this park is tagged `boundary=protected_area` in OSM, not
- * `boundary=national_park` — worth checking per-park rather than assuming
- * one tag covers every national park.
+ * The given bundled region's real boundary polygon — see
+ * src/data/README.md. Extracted from OSM's `boundary=protected_area` (or
+ * `boundary=national_park`) relations, tag conventions verified against
+ * real data per region rather than assumed uniform across all of them.
  */
-export function useParkBoundary() {
-  return { boundary: boundaryData as GeoJSON.Feature };
+export function useParkBoundary(regionSlug: string) {
+  return { boundary: REGION_ASSETS[regionSlug].boundary };
 }

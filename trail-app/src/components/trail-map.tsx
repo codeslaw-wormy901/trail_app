@@ -9,19 +9,16 @@ import { TrailTypeFilter } from '@/components/trail-type-filter';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useOfflineBasemapStyle } from '@/hooks/use-offline-basemap-style';
 import { useParkBoundary } from '@/hooks/use-park-boundary';
+import { useSelectedRegion } from '@/hooks/use-selected-region';
 import { useTrailData } from '@/hooks/use-trail-data';
-
-const PARK_NAME = 'Guadalupe Mountains National Park';
-
-const INITIAL_CENTER: [number, number] = [-104.8608, 31.8956];
-const INITIAL_ZOOM = 10;
 
 const ALL_TRAIL_TYPES = ['path', 'footway', 'track'];
 
 export function TrailMap() {
-  const mapStyle = useOfflineBasemapStyle();
-  const { boundary } = useParkBoundary();
-  const { geojson } = useTrailData();
+  const { region } = useSelectedRegion();
+  const mapStyle = useOfflineBasemapStyle(region.slug);
+  const { boundary } = useParkBoundary(region.slug);
+  const { geojson } = useTrailData(region.slug);
   const [visibleTypes, setVisibleTypes] = useState<string[]>(ALL_TRAIL_TYPES);
   const [selectedTrail, setSelectedTrail] = useState<GeoJSON.Feature | null>(null);
   const [parkSelected, setParkSelected] = useState(false);
@@ -39,8 +36,11 @@ export function TrailMap() {
 
   return (
     <ThemedView style={styles.container}>
-      <Map style={styles.map} mapStyle={mapStyle}>
-        <Camera initialViewState={{ center: INITIAL_CENTER, zoom: INITIAL_ZOOM }} />
+      {/* key={region.slug} forces a full remount on region change, so Camera's
+          initialViewState (which only applies on first mount) resets correctly
+          and no state from the previous region's selection lingers. */}
+      <Map key={region.slug} style={styles.map} mapStyle={mapStyle}>
+        <Camera initialViewState={{ center: region.center, zoom: region.zoom }} />
 
         <GeoJSONSource
           id="park-boundary"
@@ -108,7 +108,7 @@ export function TrailMap() {
         />
       )}
       {parkSelected && !selectedTrail && (
-        <ParkInfoPanel name={PARK_NAME} onClose={() => setParkSelected(false)} />
+        <ParkInfoPanel name={region.name} onClose={() => setParkSelected(false)} />
       )}
     </ThemedView>
   );

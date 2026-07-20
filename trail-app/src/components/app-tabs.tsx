@@ -30,6 +30,16 @@ export default function AppTabs() {
           renderingMode="template"
         />
       </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="regions">
+        {/* Reusing the explore icon as a placeholder — no dedicated "regions/
+            list" icon asset yet, cosmetic follow-up like the Favorites tab. */}
+        <NativeTabs.Trigger.Label>Regions</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          src={require('@/assets/images/tabIcons/explore.png')}
+          renderingMode="template"
+        />
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

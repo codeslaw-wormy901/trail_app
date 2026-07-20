@@ -3,30 +3,32 @@ import { Asset } from 'expo-asset';
 import { noLabels } from 'protomaps-themes-base';
 import { useEffect, useState } from 'react';
 
-const SOURCE_ID = 'guadalupe-basemap';
+import { REGION_ASSETS } from '@/data/regions';
+
+const SOURCE_ID = 'bundled-basemap';
 
 /**
- * Builds a MapLibre style for the bundled offline PMTiles basemap covering
- * Guadalupe Mountains National Park — see src/data/README.md for how the
- * .pmtiles file was extracted. No network calls: it ships inside the app
- * and is read directly from local storage via MapLibre's native pmtiles://
- * support (Android SDK 13.2.0 / iOS SDK 6.26.0, both well past the versions
- * that added it).
+ * Builds a MapLibre style for the given bundled region's offline PMTiles
+ * basemap — see src/data/README.md for how each .pmtiles file was
+ * extracted. No network calls: it ships inside the app and is read
+ * directly from local storage via MapLibre's native pmtiles:// support
+ * (Android SDK 13.2.0 / iOS SDK 6.26.0, both well past the versions that
+ * added it).
  *
  * Uses `noLabels` rather than the full Protomaps theme: full labels need a
  * bundled font-glyph server too, which is real extra scope, deliberately
  * deferred. This still renders terrain, roads, water, and landuse — just
  * without place-name text.
  */
-export function useOfflineBasemapStyle() {
+export function useOfflineBasemapStyle(regionSlug: string) {
   const [style, setStyle] = useState<StyleSpecification | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setStyle(null);
 
     async function load() {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const asset = Asset.fromModule(require('@/data/guadalupe-basemap.pmtiles'));
+      const asset = Asset.fromModule(REGION_ASSETS[regionSlug].basemap);
       await asset.downloadAsync();
       if (cancelled || !asset.localUri) return;
 
@@ -46,7 +48,7 @@ export function useOfflineBasemapStyle() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [regionSlug]);
 
   return style;
 }

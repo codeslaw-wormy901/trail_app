@@ -1,0 +1,26 @@
+[
+  {
+    "slug": "big-bend",
+    "name": "Big Bend National Park",
+    "category": "National Park",
+    "bounds": { "south": 28.9716602, "west": -103.7818953, "north": 29.6947196, "east": -102.839697 },
+    "center": [-103.3107962, 29.3331899],
+    "zoom": 9
+  },
+  {
+    "slug": "guadalupe-mountains",
+    "name": "Guadalupe Mountains National Park",
+    "category": "National Park",
+    "bounds": { "south": 31.8131869, "west": -105.0253529, "north": 32.0004021, "east": -104.711184 },
+    "center": [-104.8682685, 31.9067945],
+    "zoom": 10
+  },
+  {
+    "slug": "sam-houston-nf",
+    "name": "Sam Houston National Forest",
+    "category": "National Forest",
+    "bounds": { "south": 30.3277835, "west": -95.8113692, "north": 30.7504719, "east": -95.0377994 },
+    "center": [-95.4245843, 30.5391277],
+    "zoom": 10
+  }
+]
