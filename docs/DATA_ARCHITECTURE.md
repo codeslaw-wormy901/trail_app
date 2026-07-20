@@ -56,7 +56,9 @@ This is now the model for "search/filter by location" going forward: bundle a re
 
 ## Offline region selection modes
 
-Downloading a region for offline use (Phase 3) needs to support three different ways of picking "what area" — modeled loosely on how OrganicMaps/CoMaps handle this, plus a more personalized option those apps don't offer:
+Downloading a region for offline use (Phase 3) needs to support three different ways of picking "what area" — modeled loosely on how OrganicMaps/CoMaps handle this, plus a more personalized option those apps don't offer. Whichever mode picks the area, **what gets downloaded needs to be the full experience, not just a bare basemap**: trails, points of interest, and topography (elevation/contour shading), matching what a user would expect from "download this area for offline use," not a stripped-down preview of it.
+
+**Explicit callout so this doesn't get confused with the real thing:** the single bundled region shipped same-day (Guadalupe Mountains NP, see the data inventory above) is a proof of concept for mode 1's underlying *mechanism* only — one hardcoded area, no picker UI, and reduced content (no POI, no topography, no text labels). It proved bundling works end to end with zero network calls; it is not an instance of this feature. The real version needs: a UI for all three modes below, POI data included in the bundle, a separate topography/elevation tile source (not part of the vector basemap pipeline used for the prototype), and a repeatable extraction process (the prototype was manual `osmium`/`pmtiles` commands run by hand for one place, not something done on request for an arbitrary user-chosen area).
 
 1. **Search a predefined region (city/town/park boundary).** The simplest case: the world is pre-sliced into named regions ahead of time (state, metro, or park-sized chunks), each hosted as a static file. Picking one is just "download this named file" — no per-user computation happens, and the privacy exposure is minimal: a request for a named public file, nothing that reveals a personal pattern.
 
