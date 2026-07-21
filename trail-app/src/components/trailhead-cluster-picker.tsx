@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import type { TrailheadProperties } from '@/hooks/use-trailheads';
+import { trailheadDisplayName, type TrailheadProperties } from '@/hooks/use-trailheads';
 
 // Shown when a tapped map dot is a merged cluster of several trailheads
 // (they merge together as the map zooms out — see the `cluster` props on
@@ -35,7 +35,7 @@ export function TrailheadClusterPicker({
         {trailheads.map((trailhead, index) => (
           <Pressable key={`${trailhead.name}-${index}`} onPress={() => onSelect(trailhead)}>
             <ThemedView type="backgroundElement" style={styles.row}>
-              <ThemedText type="smallBold">{trailhead.name}</ThemedText>
+              <ThemedText type="smallBold">{trailheadDisplayName(trailhead)}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
                 {trailhead.trails.length} {trailhead.trails.length === 1 ? 'trail' : 'trails'}
               </ThemedText>

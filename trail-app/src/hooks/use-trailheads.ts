@@ -16,6 +16,17 @@ export type TrailheadProperties = {
   trails: TrailheadTrailSummary[];
 };
 
+// Most derived trailheads have no real OSM `highway=trailhead` tag nearby
+// and fall back to the literal name "Trailhead" (see derive_trailheads.py) —
+// showing that word over and over in a picker list is meaningless noise.
+// Every trail listed under a trailhead has a real OSM name (the derivation
+// only considers named trails as trailhead candidates), so falling back to
+// the first trail's name gives users something they can actually tell apart.
+export function trailheadDisplayName(trailhead: TrailheadProperties): string {
+  if (trailhead.name !== 'Trailhead') return trailhead.name;
+  return trailhead.trails[0]?.name ?? trailhead.name;
+}
+
 /**
  * Trailhead markers for the given bundled region — the default thing
  * visible on the map instead of every trail line (see "Trailhead-based

@@ -15,7 +15,12 @@ import { useParkBoundary } from '@/hooks/use-park-boundary';
 import { usePeaks } from '@/hooks/use-peaks';
 import { useSelectedRegion } from '@/hooks/use-selected-region';
 import { useTrailData } from '@/hooks/use-trail-data';
-import { useTrailheads, type TrailheadProperties, type TrailheadTrailSummary } from '@/hooks/use-trailheads';
+import {
+  trailheadDisplayName,
+  useTrailheads,
+  type TrailheadProperties,
+  type TrailheadTrailSummary,
+} from '@/hooks/use-trailheads';
 
 // Maps a region's catalog category to a sprite icon name — both already
 // exist in the bundled POI sprite (src/assets/sprites/), no new asset
@@ -364,7 +369,7 @@ export function TrailMap() {
 
       {activeTrailhead && (
         <TrailheadPicker
-          trailheadName={activeTrailhead.name}
+          trailheadName={trailheadDisplayName(activeTrailhead)}
           trails={activeTrailhead.trails}
           selectedTrailName={(selectedTrail?.properties as { name?: string } | undefined)?.name ?? null}
           onSelect={selectTrail}
