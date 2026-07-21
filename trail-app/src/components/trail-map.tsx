@@ -1,4 +1,4 @@
-import { Camera, GeoJSONSource, type GeoJSONSourceRef, Layer, Map } from '@maplibre/maplibre-react-native';
+import { Camera, GeoJSONSource, type GeoJSONSourceRef, Images, Layer, Map } from '@maplibre/maplibre-react-native';
 import { useMemo, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
@@ -6,9 +6,10 @@ import { ParkInfoPanel } from '@/components/park-info-panel';
 import { ThemedView } from '@/components/themed-view';
 import { TrailDetailSheet } from '@/components/trail-detail-sheet';
 import { TrailheadClusterPicker } from '@/components/trailhead-cluster-picker';
+import { TrailheadFilter } from '@/components/trailhead-filter';
 import { TrailheadPicker } from '@/components/trailhead-picker';
 import { useContours } from '@/hooks/use-contours';
-import { useFavorites } from '@/hooks/use-favorites';
+import { favoriteKey, useFavorites } from '@/hooks/use-favorites';
 import { useOfflineBasemapStyle } from '@/hooks/use-offline-basemap-style';
 import { useParkBoundary } from '@/hooks/use-park-boundary';
 import { usePeaks } from '@/hooks/use-peaks';
@@ -37,8 +38,29 @@ export function TrailMap() {
   const [activeTrailhead, setActiveTrailhead] = useState<TrailheadProperties | null>(null);
   const [activeCluster, setActiveCluster] = useState<TrailheadProperties[] | null>(null);
   const [parkSelected, setParkSelected] = useState(false);
+  const [hideShortTrails, setHideShortTrails] = useState(false);
   const { isFavorited, addFavorite, removeFavorite } = useFavorites();
   const trailheadsSourceRef = useRef<GeoJSONSourceRef>(null);
+
+  // Off by default — this app targets experienced hikers/backpackers/
+  // cyclists, not casual short-walk users, and most short trails are
+  // access/connector paths rather than destinations. A trailhead disappears
+  // entirely once none of its trails clear the 1-mile bar, since it
+  // wouldn't lead anywhere left on the filtered map.
+  const displayedTrailheads = useMemo(() => {
+    if (!hideShortTrails || !trailheads) return trailheads;
+    const features: GeoJSON.Feature[] = [];
+    for (const feature of trailheads.features) {
+      const props = feature.properties as TrailheadProperties;
+      const trails = props.trails.filter(
+        (trail) => trail.distanceMiles === null || trail.distanceMiles >= 1,
+      );
+      if (trails.length > 0) {
+        features.push({ ...feature, properties: { ...props, trails } });
+      }
+    }
+    return { ...trailheads, features };
+  }, [trailheads, hideShortTrails]);
 
   // Trailhead taps carry a logical (name-merged) trail that can span several
   // raw OSM way segments — see src/data/scripts/derive_trailheads.py. This
@@ -95,7 +117,7 @@ export function TrailMap() {
 
   async function handleTrailheadPress(event: { nativeEvent: { features: GeoJSON.Feature[] } }) {
     const tapped = event.nativeEvent.features[0];
-    if (!tapped || !trailheads) return;
+    if (!tapped || !displayedTrailheads) return;
 
     // Merged dots (see the trailheads source's cluster props below) carry a
     // cluster_id instead of one of our own feature ids — same defensive
@@ -125,7 +147,7 @@ export function TrailMap() {
     // properties, sidesteps any uncertainty about whether a nested
     // array-of-objects property (trails: [...]) survives the native
     // press-event bridge intact.
-    const trailhead = trailheads.features.find((f) => f.id === tappedId);
+    const trailhead = displayedTrailheads.features.find((f) => f.id === tappedId);
     if (!trailhead) return;
     selectTrailhead(trailhead.properties as TrailheadProperties);
   }
@@ -141,6 +163,14 @@ export function TrailMap() {
           and no state from the previous region's selection lingers. */}
       <Map key={region.slug} style={styles.map} mapStyle={mapStyle}>
         <Camera initialViewState={{ center: region.center, zoom: region.zoom }} />
+
+        {/* A small custom signpost icon for individual trailhead markers,
+            replacing the placeholder bundled-sprite "attraction" icon —
+            registered ad hoc via MapLibre's Images component rather than
+            through the Protomaps sprite-atlas trick (use-poi-sprite.ts),
+            since it's a single one-off image, not part of that shared
+            4-file atlas. */}
+        <Images images={{ 'trailhead-marker': require('@/assets/markers/trailhead.png') }} />
 
         <GeoJSONSource
           id="park-boundary"
@@ -238,11 +268,11 @@ export function TrailMap() {
             whole-park zoom. Tapping a merged dot fetches its real
             trailheads via getClusterLeaves and opens TrailheadClusterPicker,
             same "quick menu" pattern as picking a trail at one trailhead. */}
-        {trailheads && (
+        {displayedTrailheads && (
           <GeoJSONSource
             ref={trailheadsSourceRef}
             id="trailheads"
-            data={trailheads}
+            data={displayedTrailheads}
             cluster
             clusterRadius={50}
             clusterMaxZoom={14}
@@ -273,7 +303,7 @@ export function TrailMap() {
               id="trailheads-symbol"
               type="symbol"
               filter={['!', ['has', 'point_count']]}
-              layout={{ 'icon-image': 'attraction', 'icon-size': 1 }}
+              layout={{ 'icon-image': 'trailhead-marker', 'icon-size': 1 }}
             />
           </GeoJSONSource>
         )}
@@ -322,6 +352,8 @@ export function TrailMap() {
         </GeoJSONSource>
       </Map>
 
+      <TrailheadFilter hideShortTrails={hideShortTrails} onChangeHideShortTrails={setHideShortTrails} />
+
       {activeCluster && (
         <TrailheadClusterPicker
           trailheads={activeCluster}
@@ -344,13 +376,12 @@ export function TrailMap() {
         <TrailDetailSheet
           feature={selectedTrail}
           onClose={closeTrailSelection}
-          isFavorited={isFavorited(selectedTrail.id as number)}
+          isFavorited={isFavorited(selectedTrailIds)}
           onToggleFavorite={() => {
-            const id = selectedTrail.id as number;
-            if (isFavorited(id)) {
-              removeFavorite(id);
+            if (isFavorited(selectedTrailIds)) {
+              removeFavorite(favoriteKey(selectedTrailIds));
             } else {
-              addFavorite(selectedTrail);
+              addFavorite(selectedTrail, selectedTrailIds);
             }
           }}
         />

@@ -101,7 +101,7 @@ Downloading a region for offline use (Phase 3) needs to support three different 
 
 **Trailhead identification is the planned hybrid:** real OSM `highway=trailhead` nodes name a derived trailhead when one sits within 150m; the rest are derived from clustered logical-trail endpoints. Gaps and mis-clusters are expected and acceptable — community contribution (below) is the long-term fix, not a perfect day-one pipeline.
 
-**Known minor quirk:** favoriting a merged logical trail stores it under its first segment's OSM id — fine for the current on-device favorites, worth revisiting if favorites ever need to round-trip to OSM ids exactly.
+**Fixed 2026-07-21:** favoriting a merged logical trail used to store it under just its first segment's OSM id — an implementation-detail identity (which segment happened to chain first) rather than one tied to what the trail actually is. Favorites now key on the trail's full, sorted set of segment ids (`favoriteKey()` in `src/hooks/use-favorites.ts`; schema change in `src/lib/database.ts`), so identity doesn't depend on segment ordering.
 
 ## Community trail contributions (Phase 5 addition — not yet built)
 

@@ -1,8 +1,19 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
 
+// Key derived from a trail's full set of raw OSM way-segment ids, sorted so
+// it doesn't depend on which segment a particular selection happened to list
+// first. See migrateDatabase() in src/lib/database.ts for why this replaced
+// a single-segment integer id.
+export function favoriteKey(segmentIds: number[]): string {
+  return segmentIds
+    .slice()
+    .sort((a, b) => a - b)
+    .join(',');
+}
+
 export type FavoriteTrail = {
-  id: number;
+  id: string;
   name: string | null;
   highway: string | null;
   highwayLabel: string | null;
@@ -14,7 +25,7 @@ export type FavoriteTrail = {
 };
 
 type FavoriteRow = {
-  id: number;
+  id: string;
   name: string | null;
   highway: string | null;
   highway_label: string | null;
@@ -70,19 +81,19 @@ export function useFavorites() {
   }, [refresh]);
 
   const isFavorited = useCallback(
-    (id: number) => favorites.some((favorite) => favorite.id === id),
+    (segmentIds: number[]) => favorites.some((favorite) => favorite.id === favoriteKey(segmentIds)),
     [favorites],
   );
 
   const addFavorite = useCallback(
-    async (feature: GeoJSON.Feature) => {
+    async (feature: GeoJSON.Feature, segmentIds: number[]) => {
       const props = (feature.properties ?? {}) as TrailProperties;
       await db.runAsync(
         `INSERT OR REPLACE INTO favorites
            (id, name, highway, highway_label, surface, difficulty, distance_miles, geometry, saved_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          feature.id as number,
+          favoriteKey(segmentIds),
           props.name ?? null,
           props.highway ?? null,
           props.highwayLabel ?? null,
@@ -99,7 +110,7 @@ export function useFavorites() {
   );
 
   const removeFavorite = useCallback(
-    async (id: number) => {
+    async (id: string) => {
       await db.runAsync('DELETE FROM favorites WHERE id = ?', [id]);
       await refresh();
     },
