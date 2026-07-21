@@ -1,10 +1,11 @@
-import { Camera, GeoJSONSource, Layer, Map } from '@maplibre/maplibre-react-native';
-import { useMemo, useState } from 'react';
+import { Camera, GeoJSONSource, type GeoJSONSourceRef, Layer, Map } from '@maplibre/maplibre-react-native';
+import { useMemo, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { ParkInfoPanel } from '@/components/park-info-panel';
 import { ThemedView } from '@/components/themed-view';
 import { TrailDetailSheet } from '@/components/trail-detail-sheet';
+import { TrailheadClusterPicker } from '@/components/trailhead-cluster-picker';
 import { TrailheadPicker } from '@/components/trailhead-picker';
 import { useContours } from '@/hooks/use-contours';
 import { useFavorites } from '@/hooks/use-favorites';
@@ -34,8 +35,10 @@ export function TrailMap() {
   const [selectedTrail, setSelectedTrail] = useState<GeoJSON.Feature | null>(null);
   const [selectedTrailIds, setSelectedTrailIds] = useState<number[]>([]);
   const [activeTrailhead, setActiveTrailhead] = useState<TrailheadProperties | null>(null);
+  const [activeCluster, setActiveCluster] = useState<TrailheadProperties[] | null>(null);
   const [parkSelected, setParkSelected] = useState(false);
   const { isFavorited, addFavorite, removeFavorite } = useFavorites();
+  const trailheadsSourceRef = useRef<GeoJSONSourceRef>(null);
 
   // Trailhead taps carry a logical (name-merged) trail that can span several
   // raw OSM way segments — see src/data/scripts/derive_trailheads.py. This
@@ -81,11 +84,36 @@ export function TrailMap() {
     setSelectedTrail(null);
     setSelectedTrailIds([]);
     setActiveTrailhead(null);
+    setActiveCluster(null);
   }
 
-  function handleTrailheadPress(event: { nativeEvent: { features: GeoJSON.Feature[] } }) {
+  function selectTrailhead(props: TrailheadProperties) {
+    selectTrail(props.trails[0]);
+    setActiveTrailhead(props.trails.length > 1 ? props : null);
+    setActiveCluster(null);
+  }
+
+  async function handleTrailheadPress(event: { nativeEvent: { features: GeoJSON.Feature[] } }) {
     const tapped = event.nativeEvent.features[0];
     if (!tapped || !trailheads) return;
+
+    // Merged dots (see the trailheads source's cluster props below) carry a
+    // cluster_id instead of one of our own feature ids — same defensive
+    // Number() coercion as the id fix above, since properties can cross the
+    // native bridge as strings even when the source data was numeric.
+    const clusterId = Number(tapped.properties?.cluster_id);
+    if (!Number.isNaN(clusterId)) {
+      const leaves = await trailheadsSourceRef.current?.getClusterLeaves(clusterId, 100, 0);
+      const trailheadProps = (leaves ?? []).map((f) => f.properties as TrailheadProperties);
+      if (trailheadProps.length === 1) {
+        selectTrailhead(trailheadProps[0]);
+      } else if (trailheadProps.length > 1) {
+        setActiveCluster(trailheadProps);
+        setActiveTrailhead(null);
+      }
+      return;
+    }
+
     // The native press-event bridge serializes the feature id as a string
     // (Android's GeoJSONUtils uses putString for it, whatever the source
     // JSON had) — coerce back to the numeric ids our bundled data uses. A
@@ -99,10 +127,7 @@ export function TrailMap() {
     // press-event bridge intact.
     const trailhead = trailheads.features.find((f) => f.id === tappedId);
     if (!trailhead) return;
-    const props = trailhead.properties as TrailheadProperties;
-
-    selectTrail(props.trails[0]);
-    setActiveTrailhead(props.trails.length > 1 ? props : null);
+    selectTrailhead(trailhead.properties as TrailheadProperties);
   }
 
   if (!mapStyle) {
@@ -199,23 +224,56 @@ export function TrailMap() {
         )}
 
         {/* Trailheads: the default way to discover trails now, replacing the
-            old always-visible bold trail lines. A plain circle, not a
-            symbol/text label — most derived trailheads (see
-            derive_trailheads.py) don't have a real name, and repeating the
-            generic word "Trailhead" under every marker would read as noise,
-            not signal. Tapping one selects (and, if there's more than one
-            trail there, opens a picker for) whichever trail starts here. */}
+            old always-visible bold trail lines. No text label — most derived
+            trailheads (see derive_trailheads.py) don't have a real name, and
+            repeating the generic word "Trailhead" under every marker would
+            read as noise, not signal. Tapping one selects (and, if there's
+            more than one trail there, opens a picker for) whichever trail
+            starts here.
+
+            Clustering (`cluster`/`clusterRadius`/`clusterMaxZoom`) merges
+            nearby dots as the map zooms out — built into MapLibre itself,
+            not hand-rolled — so this doesn't get as visually noisy as the
+            raw marker count (66-292 per region) would otherwise look at a
+            whole-park zoom. Tapping a merged dot fetches its real
+            trailheads via getClusterLeaves and opens TrailheadClusterPicker,
+            same "quick menu" pattern as picking a trail at one trailhead. */}
         {trailheads && (
-          <GeoJSONSource id="trailheads" data={trailheads} onPress={handleTrailheadPress}>
+          <GeoJSONSource
+            ref={trailheadsSourceRef}
+            id="trailheads"
+            data={trailheads}
+            cluster
+            clusterRadius={50}
+            clusterMaxZoom={14}
+            onPress={handleTrailheadPress}>
             <Layer
-              id="trailheads-circle"
+              id="trailheads-cluster-circle"
               type="circle"
+              filter={['has', 'point_count']}
               paint={{
-                'circle-radius': 6,
-                'circle-color': '#2563eb',
+                'circle-radius': 14,
+                'circle-color': '#1d4ed8',
                 'circle-stroke-color': '#ffffff',
                 'circle-stroke-width': 2,
               }}
+            />
+            <Layer
+              id="trailheads-cluster-count"
+              type="symbol"
+              filter={['has', 'point_count']}
+              layout={{
+                'text-field': ['get', 'point_count_abbreviated'],
+                'text-font': ['Noto Sans Regular'],
+                'text-size': 12,
+              }}
+              paint={{ 'text-color': '#ffffff' }}
+            />
+            <Layer
+              id="trailheads-symbol"
+              type="symbol"
+              filter={['!', ['has', 'point_count']]}
+              layout={{ 'icon-image': 'attraction', 'icon-size': 1 }}
             />
           </GeoJSONSource>
         )}
@@ -263,6 +321,14 @@ export function TrailMap() {
           />
         </GeoJSONSource>
       </Map>
+
+      {activeCluster && (
+        <TrailheadClusterPicker
+          trailheads={activeCluster}
+          onSelect={selectTrailhead}
+          onClose={closeTrailSelection}
+        />
+      )}
 
       {activeTrailhead && (
         <TrailheadPicker
