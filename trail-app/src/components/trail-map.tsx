@@ -10,10 +10,19 @@ import { useContours } from '@/hooks/use-contours';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useOfflineBasemapStyle } from '@/hooks/use-offline-basemap-style';
 import { useParkBoundary } from '@/hooks/use-park-boundary';
+import { usePeaks } from '@/hooks/use-peaks';
 import { useSelectedRegion } from '@/hooks/use-selected-region';
 import { useTrailData } from '@/hooks/use-trail-data';
 
 const ALL_TRAIL_TYPES = ['path', 'footway', 'track'];
+
+// Maps a region's catalog category to a sprite icon name — both already
+// exist in the bundled POI sprite (src/assets/sprites/), no new asset
+// needed. Falls back to "park" for any category not explicitly mapped.
+function iconForCategory(category: string): string {
+  if (category.includes('Forest')) return 'forest';
+  return 'park';
+}
 
 export function TrailMap() {
   const { region } = useSelectedRegion();
@@ -21,6 +30,7 @@ export function TrailMap() {
   const { boundary } = useParkBoundary(region.slug);
   const { geojson } = useTrailData(region.slug);
   const contours = useContours(region.slug);
+  const peaks = usePeaks(region.slug);
   const [visibleTypes, setVisibleTypes] = useState<string[]>(ALL_TRAIL_TYPES);
   const [selectedTrail, setSelectedTrail] = useState<GeoJSON.Feature | null>(null);
   const [parkSelected, setParkSelected] = useState(false);
@@ -99,6 +109,83 @@ export function TrailMap() {
               paint={{ 'line-color': '#fbbf24', 'line-width': 5 }}
             />
           )}
+        </GeoJSONSource>
+
+        {/* Named peaks, bundled independently of the vector basemap's own
+            POI layer (which Protomaps prunes below zoom 11 to keep general-
+            purpose tiles small — confirmed by decoding the raw tile data,
+            not assumed). Secondary to the region label below: no
+            allow-overlap, so MapLibre's own label-collision system declutters
+            naturally at low zoom rather than an arbitrary min-zoom cutoff —
+            symbol-z-order "source" plus the data's elevation-descending sort
+            (see transform_peaks.py) means taller, more recognizable peaks
+            win when not everything fits. */}
+        {peaks && (
+          <GeoJSONSource id="peaks" data={peaks}>
+            <Layer
+              id="peaks-symbol"
+              type="symbol"
+              layout={{
+                'icon-image': 'peak',
+                'icon-size': 0.9,
+                'symbol-z-order': 'source',
+                'text-field': ['get', 'name'],
+                'text-font': ['Noto Sans Regular'],
+                'text-size': 11,
+                'text-anchor': 'top',
+                'text-offset': [0, 0.6],
+                'text-justify': 'center',
+              }}
+              paint={{
+                'text-color': '#57534e',
+                'text-halo-color': '#ffffff',
+                'text-halo-width': 1.2,
+              }}
+            />
+          </GeoJSONSource>
+        )}
+
+        {/* The single most prominent thing on the map: a tree icon + the
+            park/forest's own name, so a user glancing at the map immediately
+            knows what they're looking at and can find it again later — the
+            actual ask, not a byproduct of the peaks/POI work below. Built
+            directly from already-bundled data (region.center/name), not a
+            new extraction — last in the JSX tree so it draws on top of
+            trails/contours/boundary, never obscured by them. */}
+        <GeoJSONSource
+          id="region-label"
+          data={{
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: { name: region.name, icon: iconForCategory(region.category) },
+                geometry: { type: 'Point', coordinates: region.center },
+              },
+            ],
+          }}>
+          <Layer
+            id="region-label-symbol"
+            type="symbol"
+            layout={{
+              'icon-image': ['get', 'icon'],
+              'icon-size': 1.6,
+              'icon-allow-overlap': true,
+              'text-field': ['get', 'name'],
+              'text-font': ['Noto Sans Regular'],
+              'text-size': 15,
+              'text-anchor': 'top',
+              'text-offset': [0, 0.8],
+              'text-justify': 'center',
+              'text-max-width': 8,
+              'text-allow-overlap': true,
+            }}
+            paint={{
+              'text-color': '#166534',
+              'text-halo-color': '#ffffff',
+              'text-halo-width': 1.6,
+            }}
+          />
         </GeoJSONSource>
       </Map>
 

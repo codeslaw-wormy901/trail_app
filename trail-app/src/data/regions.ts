@@ -27,6 +27,7 @@ export const REGION_ASSETS: Record<
     basemap: number;
     terrain?: number;
     contours?: GeoJSON.FeatureCollection;
+    peaks?: GeoJSON.FeatureCollection;
   }
 > = {
   'big-bend': {
@@ -35,6 +36,7 @@ export const REGION_ASSETS: Record<
     basemap: require('@/data/regions/big-bend/basemap.pmtiles'),
     terrain: require('@/data/regions/big-bend/terrain.pmtiles'),
     contours: require('@/data/regions/big-bend/contours.json'),
+    peaks: require('@/data/regions/big-bend/peaks.json'),
   },
   'guadalupe-mountains': {
     trails: require('@/data/regions/guadalupe-mountains/trails.json'),
@@ -42,6 +44,7 @@ export const REGION_ASSETS: Record<
     basemap: require('@/data/regions/guadalupe-mountains/basemap.pmtiles'),
     terrain: require('@/data/regions/guadalupe-mountains/terrain.pmtiles'),
     contours: require('@/data/regions/guadalupe-mountains/contours.json'),
+    peaks: require('@/data/regions/guadalupe-mountains/peaks.json'),
   },
   'sam-houston-nf': {
     trails: require('@/data/regions/sam-houston-nf/trails.json'),
@@ -49,5 +52,6 @@ export const REGION_ASSETS: Record<
     basemap: require('@/data/regions/sam-houston-nf/basemap.pmtiles'),
     terrain: require('@/data/regions/sam-houston-nf/terrain.pmtiles'),
     contours: require('@/data/regions/sam-houston-nf/contours.json'),
+    peaks: require('@/data/regions/sam-houston-nf/peaks.json'),
   },
 };
