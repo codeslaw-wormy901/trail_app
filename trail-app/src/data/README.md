@@ -1,6 +1,6 @@
 # Bundled region data
 
-Each folder under `regions/<slug>/` (`trails.json`, `boundary.json`, `basemap.pmtiles`, `terrain.pmtiles`, `contours.json`, `peaks.json`) is a one-time extraction from OpenStreetMap + Protomaps + Mapterhorn, bundled with the app so that region works with **zero live network calls** — see `docs/DATA_ARCHITECTURE.md` for why (Overpass and MapTiler, the public APIs this data would otherwise come from live, turned out to be unreliable enough during development that bundling became the right call, not just a workaround).
+Each folder under `regions/<slug>/` (`trails.json`, `boundary.json`, `basemap.pmtiles`, `terrain.pmtiles`, `contours.json`, `peaks.json`, `trailheads.json`) is a one-time extraction from OpenStreetMap + Protomaps + Mapterhorn, bundled with the app so that region works with **zero live network calls** — see `docs/DATA_ARCHITECTURE.md` for why (Overpass and MapTiler, the public APIs this data would otherwise come from live, turned out to be unreliable enough during development that bundling became the right call, not just a workaround).
 
 `catalog.json` is the index of bundled regions (name, category, bounding box, map center/zoom) that drives the Regions picker screen (`src/app/regions.tsx`). `regions.ts` maps each catalog entry's slug to its `require()`'d asset files — Metro needs static, literal `require()` paths, so **`REGION_ASSETS` in `regions.ts` must be manually extended by hand any time a new region folder is added**; there's no dynamic loading yet.
 
@@ -13,6 +13,7 @@ Each folder under `regions/<slug>/` (`trails.json`, `boundary.json`, `basemap.pm
 - **`add_elevation_gain.py`** — adds an `elevationGainFeet` property to each trail feature by sampling that region's own bundled `terrain.pmtiles` (same Mapterhorn DEM data as hillshade, no separate elevation source). Resamples each trail's line at a fixed ~30m step (matching the DEM's native resolution) before summing positive elevation deltas — sampling every raw OSM vertex instead would mostly just re-measure DEM pixel noise, not real elevation change. A small number of trails whose path extends past the extracted terrain bbox get `null` (shown as "not available" in the UI) rather than a wrong number.
 - **`generate_contours.py`** — generates `contours.json` (elevation contour lines) from that region's own bundled `terrain.pmtiles`. Unlike elevation gain (point samples), contour tracing needs a full 2D elevation grid: mosaics every z11 tile covering the region's bbox into one raster, kept in Web Mercator (EPSG:3857) for the mosaic and contour tracing since XYZ tiles are only pixel-uniform in that projection — building the mosaic directly in lon/lat would silently distort every line — then reprojects to WGS84 only at the end. Requires GDAL (`brew install gdal`, plus Pillow/numpy in the same Python environment — see the venv setup note in the script's own docstring). 60m contour interval, simplified to a 30m tolerance (matching the DEM's own resolution) before reprojecting, which cut output size by roughly 95% with no visible quality loss — worth doing before assuming a "too big" interval is the only lever available. Degenerate zero-length segments (a simplification byproduct, and the direct cause of a real "Invalid geometry in line layer" warning caught by testing on-device) are stripped before writing.
 - **`transform_peaks.py`** — converts an osmium export of `natural=peak` nodes into a region's independently-bundled `peaks.json`. Bundled separately from the vector basemap's own POI layer on purpose: checked the raw tile data directly (not assumed) and confirmed Protomaps' basemap build prunes named peaks out of tiles below zoom 11 to keep general-purpose tiles small — a real tile-generation constraint no style setting can override. Sorted by elevation descending so taller peaks get render priority in MapLibre's own label-collision system (paired with `symbol-z-order: "source"` in `trail-map.tsx`) when not every peak fits on screen without overlapping.
+- **`derive_trailheads.py`** — builds a region's `trailheads.json`, the markers driving trailhead-based browsing (see `docs/DATA_ARCHITECTURE.md`). Hybrid naming: real OSM `highway=trailhead` nodes name a derived trailhead when one sits within 150m; everything else is plainly "Trailhead" rather than a guessed name. The derivation itself took three attempts worth remembering: naively clustering every way-segment endpoint produced 426 "trailheads" for a park with 302 segments (every stitch point between fragments of the same trail counted as one); merging segments by shared `name` barely helped because 241 of Guadalupe's 302 segments have no name at all; what works is merging by network *topology* — chaining segments through degree-2 pass-through points into logical trails, then keeping only *named* logical trails as trailhead candidates (standalone unnamed segments are overwhelmingly social-trail spurs; they still render via the basemap's dotted paths, just without a marker). Result: 66/266/292 trailheads for Guadalupe/Big Bend/Sam Houston. Each trailhead's `trails` property carries the logical trails starting there (per-trail summed distance/elevation gain, segment id list) so the app can highlight and favorite a whole logical trail at once.
 - **`texas-catalog.json`** — the full 50-entry Texas catalog produced by `build_catalog.py` from a full-state extract. Only 3 of these 50 are currently wired into `catalog.json`/`regions.ts` — the rest are here for reference and as the starting point whenever more Texas regions get added. Known data-quality issue to fix before trusting this further: at least one duplicate entry from inconsistent OSM naming ("Caprock Canyons State Park" vs "...and Trailway").
 
 ## How a region gets added (reproduce for a new region, or when OSM data goes stale)
@@ -70,12 +71,19 @@ python3 scripts/generate_contours.py regions/<slug>/terrain.pmtiles \
 osmium tags-filter <slug>-area.osm.pbf n/natural=peak -o <slug>-peaks.osm.pbf
 osmium export <slug>-peaks.osm.pbf -o <slug>-peaks.geojson
 python3 scripts/transform_peaks.py <slug>-peaks.geojson regions/<slug>/peaks.json
+
+# 11. Derive trailheads (run AFTER step 8 so per-trail elevation gain is
+#     already in trails.json — the trailhead entries aggregate it)
+osmium tags-filter <slug>-area.osm.pbf n/highway=trailhead -o <slug>-trailheads-tagged.osm.pbf
+osmium export <slug>-trailheads-tagged.osm.pbf -o <slug>-trailheads-tagged.geojson
+python3 scripts/derive_trailheads.py regions/<slug>/trails.json \
+  <slug>-trailheads-tagged.geojson regions/<slug>/trailheads.json
 ```
 
 Then, by hand:
 
 1. Add an entry to `catalog.json` (slug, name, category, bounds, center, zoom).
-2. Add a matching entry to `REGION_ASSETS` in `regions.ts` with static `require()`s for the six new files.
+2. Add a matching entry to `REGION_ASSETS` in `regions.ts` with static `require()`s for the seven new files.
 
 ## When this needs to change
 

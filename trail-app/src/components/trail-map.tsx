@@ -1,11 +1,11 @@
 import { Camera, GeoJSONSource, Layer, Map } from '@maplibre/maplibre-react-native';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { ParkInfoPanel } from '@/components/park-info-panel';
 import { ThemedView } from '@/components/themed-view';
 import { TrailDetailSheet } from '@/components/trail-detail-sheet';
-import { TrailTypeFilter } from '@/components/trail-type-filter';
+import { TrailheadPicker } from '@/components/trailhead-picker';
 import { useContours } from '@/hooks/use-contours';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useOfflineBasemapStyle } from '@/hooks/use-offline-basemap-style';
@@ -13,8 +13,7 @@ import { useParkBoundary } from '@/hooks/use-park-boundary';
 import { usePeaks } from '@/hooks/use-peaks';
 import { useSelectedRegion } from '@/hooks/use-selected-region';
 import { useTrailData } from '@/hooks/use-trail-data';
-
-const ALL_TRAIL_TYPES = ['path', 'footway', 'track'];
+import { useTrailheads, type TrailheadProperties, type TrailheadTrailSummary } from '@/hooks/use-trailheads';
 
 // Maps a region's catalog category to a sprite icon name — both already
 // exist in the bundled POI sprite (src/assets/sprites/), no new asset
@@ -31,15 +30,79 @@ export function TrailMap() {
   const { geojson } = useTrailData(region.slug);
   const contours = useContours(region.slug);
   const peaks = usePeaks(region.slug);
-  const [visibleTypes, setVisibleTypes] = useState<string[]>(ALL_TRAIL_TYPES);
+  const trailheads = useTrailheads(region.slug);
   const [selectedTrail, setSelectedTrail] = useState<GeoJSON.Feature | null>(null);
+  const [selectedTrailIds, setSelectedTrailIds] = useState<number[]>([]);
+  const [activeTrailhead, setActiveTrailhead] = useState<TrailheadProperties | null>(null);
   const [parkSelected, setParkSelected] = useState(false);
   const { isFavorited, addFavorite, removeFavorite } = useFavorites();
 
-  function toggleType(type: string) {
-    setVisibleTypes((current) =>
-      current.includes(type) ? current.filter((t) => t !== type) : [...current, type],
-    );
+  // Trailhead taps carry a logical (name-merged) trail that can span several
+  // raw OSM way segments — see src/data/scripts/derive_trailheads.py. This
+  // looks each segment's real geometry up by id and combines them into one
+  // MultiLineString, so the rest of the app (highlight layer, favorites,
+  // TrailDetailSheet) can keep treating "a trail" as a single GeoJSON
+  // Feature without knowing about the underlying fragmentation.
+  const trailsById = useMemo(() => {
+    const byId: Record<number, GeoJSON.Feature> = {};
+    for (const feature of geojson.features) {
+      if (typeof feature.id === 'number') {
+        byId[feature.id] = feature;
+      }
+    }
+    return byId;
+  }, [geojson]);
+
+  function selectTrail(trail: TrailheadTrailSummary) {
+    const coordinates = trail.ids
+      .map((id) => trailsById[id])
+      .filter((feature): feature is GeoJSON.Feature => !!feature)
+      .map((feature) => (feature.geometry as GeoJSON.LineString).coordinates);
+
+    setSelectedTrail({
+      type: 'Feature',
+      id: trail.ids[0],
+      properties: {
+        name: trail.name,
+        highway: trail.highway,
+        highwayLabel: trail.highwayLabel,
+        surface: trail.surface,
+        difficulty: trail.difficulty,
+        distanceMiles: trail.distanceMiles,
+        elevationGainFeet: trail.elevationGainFeet,
+      },
+      geometry: { type: 'MultiLineString', coordinates },
+    });
+    setSelectedTrailIds(trail.ids);
+    setParkSelected(false);
+  }
+
+  function closeTrailSelection() {
+    setSelectedTrail(null);
+    setSelectedTrailIds([]);
+    setActiveTrailhead(null);
+  }
+
+  function handleTrailheadPress(event: { nativeEvent: { features: GeoJSON.Feature[] } }) {
+    const tapped = event.nativeEvent.features[0];
+    if (!tapped || !trailheads) return;
+    // The native press-event bridge serializes the feature id as a string
+    // (Android's GeoJSONUtils uses putString for it, whatever the source
+    // JSON had) — coerce back to the numeric ids our bundled data uses. A
+    // strict `typeof id === 'number'` guard here silently ate every tap.
+    const tappedId = Number(tapped.id);
+    if (Number.isNaN(tappedId)) return;
+    // Looking properties back up from the already-loaded trailheads
+    // FeatureCollection by id, rather than trusting the tap event's own
+    // properties, sidesteps any uncertainty about whether a nested
+    // array-of-objects property (trails: [...]) survives the native
+    // press-event bridge intact.
+    const trailhead = trailheads.features.find((f) => f.id === tappedId);
+    if (!trailhead) return;
+    const props = trailhead.properties as TrailheadProperties;
+
+    selectTrail(props.trails[0]);
+    setActiveTrailhead(props.trails.length > 1 ? props : null);
   }
 
   if (!mapStyle) {
@@ -59,7 +122,7 @@ export function TrailMap() {
           data={boundary}
           onPress={() => {
             setParkSelected(true);
-            setSelectedTrail(null);
+            closeTrailSelection();
           }}>
           <Layer
             id="park-boundary-fill"
@@ -83,28 +146,18 @@ export function TrailMap() {
           </GeoJSONSource>
         )}
 
-        <GeoJSONSource
-          id="trails"
-          data={geojson}
-          onPress={(event) => {
-            const feature = event.nativeEvent.features[0];
-            if (feature) {
-              setSelectedTrail(feature);
-              setParkSelected(false);
-            }
-          }}>
-          <Layer
-            id="trails-line"
-            type="line"
-            filter={['in', ['get', 'highway'], ['literal', visibleTypes]]}
-            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-            paint={{ 'line-color': '#c2410c', 'line-width': 2 }}
-          />
-          {selectedTrail && (
+        {/* Trails are no longer bold and always-visible by default — see
+            "Trailhead-based browsing" in docs/DATA_ARCHITECTURE.md. Only the
+            currently-selected (logical) trail gets the bold highlight;
+            everything else is still visible as the basemap's own thin/dotted
+            path styling (protomaps-themes-base's "roads_other" layer),
+            present for context without competing for attention. */}
+        <GeoJSONSource id="trails" data={geojson}>
+          {selectedTrailIds.length > 0 && (
             <Layer
               id="trails-line-selected"
               type="line"
-              filter={['==', ['id'], selectedTrail.id ?? -1]}
+              filter={['in', ['id'], ['literal', selectedTrailIds]]}
               layout={{ 'line-cap': 'round', 'line-join': 'round' }}
               paint={{ 'line-color': '#fbbf24', 'line-width': 5 }}
             />
@@ -140,6 +193,28 @@ export function TrailMap() {
                 'text-color': '#57534e',
                 'text-halo-color': '#ffffff',
                 'text-halo-width': 1.2,
+              }}
+            />
+          </GeoJSONSource>
+        )}
+
+        {/* Trailheads: the default way to discover trails now, replacing the
+            old always-visible bold trail lines. A plain circle, not a
+            symbol/text label — most derived trailheads (see
+            derive_trailheads.py) don't have a real name, and repeating the
+            generic word "Trailhead" under every marker would read as noise,
+            not signal. Tapping one selects (and, if there's more than one
+            trail there, opens a picker for) whichever trail starts here. */}
+        {trailheads && (
+          <GeoJSONSource id="trailheads" data={trailheads} onPress={handleTrailheadPress}>
+            <Layer
+              id="trailheads-circle"
+              type="circle"
+              paint={{
+                'circle-radius': 6,
+                'circle-color': '#2563eb',
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-width': 2,
               }}
             />
           </GeoJSONSource>
@@ -189,12 +264,20 @@ export function TrailMap() {
         </GeoJSONSource>
       </Map>
 
-      <TrailTypeFilter visibleTypes={visibleTypes} onToggle={toggleType} />
+      {activeTrailhead && (
+        <TrailheadPicker
+          trailheadName={activeTrailhead.name}
+          trails={activeTrailhead.trails}
+          selectedTrailName={(selectedTrail?.properties as { name?: string } | undefined)?.name ?? null}
+          onSelect={selectTrail}
+          onClose={closeTrailSelection}
+        />
+      )}
 
       {selectedTrail && (
         <TrailDetailSheet
           feature={selectedTrail}
-          onClose={() => setSelectedTrail(null)}
+          onClose={closeTrailSelection}
           isFavorited={isFavorited(selectedTrail.id as number)}
           onToggleFavorite={() => {
             const id = selectedTrail.id as number;
