@@ -63,3 +63,40 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+// A single warm accent, used sparingly (an active favorite star, a filter
+// switch) so it reads as an intentional highlight rather than noise.
+export const AccentColor = '#f59e0b';
+
+// OSM's sac_scale, labeled by transform_region.py's SAC_SCALE_LABELS —
+// deepening red for harder trails, with no color (a neutral gray dot) for
+// the "not specified in OpenStreetMap" case, honest about what's unknown
+// rather than implying a difficulty that isn't there.
+const DifficultyColors: Record<string, string> = {
+  Easy: '#16a34a',
+  Moderate: '#d97706',
+  Difficult: '#ea580c',
+  'Very difficult': '#dc2626',
+  Extreme: '#991b1b',
+};
+
+export function difficultyColor(difficulty?: string | null): string {
+  return (difficulty && DifficultyColors[difficulty]) || '#9ca3af';
+}
+
+// Applied to the map's floating panels (detail sheet, pickers, filter menu)
+// so they read as lifted above the map rather than flat-pasted onto it.
+export const PanelShadow =
+  Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+    },
+    android: {
+      elevation: 6,
+    },
+  }) ?? {};
+
+export const PanelRadius = 18;

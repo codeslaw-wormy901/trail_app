@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { PanelRadius, PanelShadow, Spacing } from '@/constants/theme';
 import { trailheadDisplayName, type TrailheadProperties } from '@/hooks/use-trailheads';
 
 // Shown when a tapped map dot is a merged cluster of several trailheads
@@ -52,9 +52,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    borderRadius: 12,
+    borderRadius: PanelRadius,
     padding: Spacing.three,
     maxHeight: '40%',
+    ...PanelShadow,
   },
   header: {
     flexDirection: 'row',
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   row: {
-    borderRadius: 10,
+    borderRadius: 12,
     padding: Spacing.two,
     gap: Spacing.half,
   },

@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { AccentColor, PanelShadow, Spacing } from '@/constants/theme';
 
 // A round corner button (map-filter affordance requested by the user) that
 // opens a small menu below it. Only one filter exists so far — more
@@ -41,7 +41,11 @@ export function TrailheadFilter({
                 Cuts short access/connector paths from the map
               </ThemedText>
             </View>
-            <Switch value={hideShortTrails} onValueChange={onChangeHideShortTrails} />
+            <Switch
+              value={hideShortTrails}
+              onValueChange={onChangeHideShortTrails}
+              trackColor={{ true: AccentColor }}
+            />
           </View>
         </ThemedView>
       )}
@@ -62,6 +66,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+    ...PanelShadow,
   },
   bar: {
     height: 2,
@@ -71,8 +76,9 @@ const styles = StyleSheet.create({
   menu: {
     marginTop: Spacing.two,
     width: 220,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: Spacing.three,
+    ...PanelShadow,
   },
   row: {
     flexDirection: 'row',

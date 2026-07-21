@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { difficultyColor, PanelRadius, PanelShadow, Spacing } from '@/constants/theme';
 import type { TrailheadTrailSummary } from '@/hooks/use-trailheads';
 
 // Shown when a tapped trailhead has more than one trail starting there —
@@ -48,11 +48,20 @@ export function TrailheadPicker({
             <Pressable key={trail.name} onPress={() => onSelect(trail)}>
               <ThemedView type={active ? 'backgroundSelected' : 'backgroundElement'} style={styles.row}>
                 <ThemedText type="smallBold">{trail.name}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {trail.highwayLabel ?? 'Trail'}
-                  {typeof trail.distanceMiles === 'number' ? ` · ${trail.distanceMiles} mi` : ''}
-                  {trail.difficulty ? ` · ${trail.difficulty}` : ''}
-                </ThemedText>
+                <View style={styles.metaRow}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {trail.highwayLabel ?? 'Trail'}
+                    {typeof trail.distanceMiles === 'number' ? ` · ${trail.distanceMiles} mi` : ''}
+                  </ThemedText>
+                  {trail.difficulty && (
+                    <View style={styles.difficultyInline}>
+                      <View style={[styles.dot, { backgroundColor: difficultyColor(trail.difficulty) }]} />
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {trail.difficulty}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
               </ThemedView>
             </Pressable>
           );
@@ -67,9 +76,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    borderRadius: 12,
+    borderRadius: PanelRadius,
     padding: Spacing.three,
     maxHeight: '40%',
+    ...PanelShadow,
   },
   header: {
     flexDirection: 'row',
@@ -83,8 +93,24 @@ const styles = StyleSheet.create({
   listContent: {
     gap: Spacing.one,
   },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  difficultyInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.half,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
   row: {
-    borderRadius: 10,
+    borderRadius: 12,
     padding: Spacing.two,
     gap: Spacing.half,
   },

@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { BottomTabInset, PanelRadius, PanelShadow, Spacing } from '@/constants/theme';
 
 // Shown when the park boundary itself is tapped (rather than a trail inside
 // it). Right now there's only ever one park loaded, so this is mostly about
@@ -27,8 +27,9 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     bottom: BottomTabInset + Spacing.two,
-    borderRadius: 12,
+    borderRadius: PanelRadius,
     padding: Spacing.three,
+    ...PanelShadow,
   },
   row: {
     flexDirection: 'row',

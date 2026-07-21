@@ -2,7 +2,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import {
+  AccentColor,
+  BottomTabInset,
+  difficultyColor,
+  PanelRadius,
+  PanelShadow,
+  Spacing,
+} from '@/constants/theme';
 
 type TrailProperties = {
   name?: string | null;
@@ -43,27 +50,35 @@ export function TrailDetailSheet({
         </Pressable>
       </View>
 
-      <ThemedText type="small">
-        {props.highwayLabel ?? 'Trail'}
-        {typeof props.distanceMiles === 'number' ? ` · ${props.distanceMiles} mi` : ''}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        Difficulty: {props.difficulty ?? 'not specified in OpenStreetMap'}
-      </ThemedText>
-      {props.surface && (
-        <ThemedText type="small" themeColor="textSecondary">
-          Surface: {props.surface}
-        </ThemedText>
-      )}
-      <ThemedText type="small" themeColor="textSecondary">
-        Elevation gain:{' '}
-        {typeof props.elevationGainFeet === 'number'
-          ? `~${props.elevationGainFeet.toLocaleString()} ft`
-          : 'not available for this trail'}
-      </ThemedText>
+      <View style={styles.chipsRow}>
+        <ThemedView type="backgroundSelected" style={styles.chip}>
+          <ThemedText type="small">{props.highwayLabel ?? 'Trail'}</ThemedText>
+        </ThemedView>
+        {typeof props.distanceMiles === 'number' && (
+          <ThemedView type="backgroundSelected" style={styles.chip}>
+            <ThemedText type="small">{props.distanceMiles} mi</ThemedText>
+          </ThemedView>
+        )}
+        <ThemedView type="backgroundSelected" style={styles.chip}>
+          <View style={[styles.dot, { backgroundColor: difficultyColor(props.difficulty) }]} />
+          <ThemedText type="small">{props.difficulty ?? 'Not rated'}</ThemedText>
+        </ThemedView>
+        {props.surface && (
+          <ThemedView type="backgroundSelected" style={styles.chip}>
+            <ThemedText type="small">{props.surface}</ThemedText>
+          </ThemedView>
+        )}
+        <ThemedView type="backgroundSelected" style={styles.chip}>
+          <ThemedText type="small">
+            {typeof props.elevationGainFeet === 'number'
+              ? `~${props.elevationGainFeet.toLocaleString()} ft gain`
+              : 'Gain n/a'}
+          </ThemedText>
+        </ThemedView>
+      </View>
 
       <Pressable onPress={onToggleFavorite} hitSlop={8} style={styles.favoriteRow}>
-        <ThemedText type="smallBold">
+        <ThemedText type="smallBold" style={isFavorited ? styles.favoriteActive : undefined}>
           {isFavorited ? '★ Saved to Favorites' : '☆ Save to Favorites'}
         </ThemedText>
       </Pressable>
@@ -79,9 +94,10 @@ const styles = StyleSheet.create({
     // BottomTabInset keeps this clear of the native tab bar, same convention
     // already used elsewhere in the app (see src/app/index.tsx).
     bottom: BottomTabInset + Spacing.two,
-    borderRadius: 12,
+    borderRadius: PanelRadius,
     padding: Spacing.three,
     gap: Spacing.one,
+    ...PanelShadow,
   },
   header: {
     flexDirection: 'row',
@@ -94,5 +110,26 @@ const styles = StyleSheet.create({
   },
   favoriteRow: {
     marginTop: Spacing.two,
+  },
+  favoriteActive: {
+    color: AccentColor,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.one,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.half,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.half,
+    borderRadius: 999,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });
